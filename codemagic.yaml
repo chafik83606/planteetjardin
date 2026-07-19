@@ -48,9 +48,16 @@ workflows:
 
       - name: Detect Xcode workspace and scheme
         script: |
+          # *.xcworkspace is a directory; use find/-d so we get the bundle name,
+          # not contents.xcworkspacedata inside it
           cd ios
-          WORKSPACE=$(ls -1 *.xcworkspace | head -1)
-          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" -json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['workspace']['schemes'][0])")
+          WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" -print | head -1 | sed 's|^\./||')
+          if [ -z "$WORKSPACE" ]; then
+            echo "No .xcworkspace found in ios/"
+            ls -la
+            exit 1
+          fi
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" -json | python3 -c "import sys,json; d=json.load(sys.stdin); s=[x for x in d['workspace']['schemes'] if x.lower()!='pods']; print(s[0])")
           echo "WORKSPACE=$WORKSPACE"
           echo "SCHEME=$SCHEME"
           echo "XCODE_WORKSPACE=$WORKSPACE" >> $CM_ENV
