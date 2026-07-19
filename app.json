@@ -1,25 +1,75 @@
 {
   "expo": {
-    "name": "planteetjardin",
+    "name": "Plante & Jardin",
     "slug": "planteetjardin",
-    "version": "1.0.0",
+    "version": "1.1.11",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "scheme": "planteetjardin",
     "ios": {
-      "supportsTablet": true
+      "buildNumber": "16",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.planteetjardin.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Prenez des photos de vos plantes pour le diagnostic IA.",
+        "NSPhotoLibraryUsageDescription": "Sélectionnez des photos de vos plantes pour le diagnostic IA.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.planteetjardin.app",
+      "versionCode": 12,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#2D6A4F",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundImage": "./assets/android-icon-background.png"
       },
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#2D6A4F"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2D6A4F"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Sélectionnez des photos de vos plantes pour le diagnostic IA.",
+          "cameraPermission": "Prenez des photos de vos plantes pour le diagnostic IA."
+        }
+      ],
+      "expo-iap"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7eab2326-7a2a-4f42-8512-610196c54941"
+      }
+    },
+    "owner": "chafik83"
   }
 }

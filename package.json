@@ -1,22 +1,45 @@
 {
   "name": "planteetjardin",
-  "version": "1.0.0",
-  "main": "index.ts",
+  "version": "1.1.11",
+  "main": "expo-router/entry",
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "date-fns": "^4.4.0",
     "expo": "~56.0.12",
+    "expo-constants": "~56.0.18",
+    "expo-font": "~56.0.7",
+    "expo-iap": "~4.3.6",
+    "expo-image-picker": "~56.0.18",
+    "expo-linking": "~56.0.14",
+    "expo-notifications": "~56.0.18",
+    "expo-router": "~56.2.11",
+    "expo-sharing": "~56.0.18",
+    "expo-splash-screen": "~56.0.10",
+    "expo-sqlite": "~56.0.5",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
-    "react-native": "0.85.3"
+    "react-native": "0.85.3",
+    "react-native-gesture-handler": "~2.31.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "4.25.2",
+    "react-native-view-shot": "^5.1.0"
   },
   "devDependencies": {
+    "@expo/ngrok": "^4.1.3",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build:android:preview": "eas build --platform android --profile preview",
+    "build:android:production": "eas build --platform android --profile production",
+    "build:ios:production": "eas build --platform ios --profile production",
+    "submit:ios": "eas submit --platform ios --profile production",
+    "screenshots:resize": "python scripts/resize_screenshots.py --mode cover",
+    "screenshots:resize:pad": "python scripts/resize_screenshots.py --mode contain"
   },
   "private": true
 }

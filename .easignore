@@ -1,0 +1,14 @@
+# Dossier Android généré localement — inutile pour un build iOS (prebuild sur les serveurs EAS)
+/android
+
+# Site statique, docs, IDE
+/privacy-site
+/docs
+/.idea
+
+# Fichiers non nécessaires au build
+*.md
+.env.example
+google-service-account.json
+/store-assets
+/scripts
