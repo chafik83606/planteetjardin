@@ -1,0 +1,105 @@
+# Codemagic CI — Plante & Jardin (Expo)
+# Docs: https://docs.codemagic.io/yaml-quick-start/building-a-react-native-app/
+#
+# Avant le 1er build iOS dans Codemagic :
+# 1. Teams → Integrations → App Store Connect (API key)
+# 2. Code signing identities / provisioning (ou automatic via ios_signing)
+# 3. Environment variables (Application) :
+#    - EXPO_PUBLIC_OPENAI_API_KEY (secret)
+# 4. Remplacez APP_STORE_APPLE_ID si besoin (App Store Connect → App → App Information)
+
+workflows:
+  ios-production:
+    name: iOS Production (Expo)
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Codemagic
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.planteetjardin.app
+      vars:
+        BUNDLE_ID: com.planteetjardin.app
+        # App Store Connect → App Information → Apple ID (numérique)
+        APP_STORE_APPLE_ID: "6783839756"
+      node: 22.14.0
+      xcode: latest
+      cocoapods: default
+      # Définissez EXPO_PUBLIC_OPENAI_API_KEY dans Codemagic
+      # (Application → Environment variables, Secure)
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm ci || npm install
+
+      - name: Generate iOS native project (Expo prebuild)
+        script: |
+          npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods
+        script: |
+          cd ios && pod install
+
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles --warn-only
+
+      - name: Detect Xcode workspace and scheme
+        script: |
+          cd ios
+          WORKSPACE=$(ls -1 *.xcworkspace | head -1)
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" -json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['workspace']['schemes'][0])")
+          echo "WORKSPACE=$WORKSPACE"
+          echo "SCHEME=$SCHEME"
+          echo "XCODE_WORKSPACE=$WORKSPACE" >> $CM_ENV
+          echo "XCODE_SCHEME=$SCHEME" >> $CM_ENV
+
+      - name: Increment build number from TestFlight
+        script: |
+          cd ios
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo "0")
+          NEW=$((LATEST + 1))
+          echo "Build number: $NEW (latest TestFlight: $LATEST)"
+          agvtool new-version -all "$NEW"
+
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "ios/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # submit_to_app_store: false
+
+  android-production:
+    name: Android Production (Expo AAB)
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      node: 22.14.0
+      java: 17
+      # Définissez EXPO_PUBLIC_OPENAI_API_KEY dans Codemagic (Secure)
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm ci || npm install
+
+      - name: Generate Android native project
+        script: |
+          npx expo prebuild --platform android --clean
+
+      - name: Build App Bundle
+        script: |
+          cd android
+          ./gradlew bundleRelease
+
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
