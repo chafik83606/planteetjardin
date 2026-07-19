@@ -14,7 +14,8 @@ workflows:
     max_build_duration: 120
     instance_type: mac_mini_m2
     integrations:
-      app_store_connect: Codemagic
+      # Doit correspondre au nom exact dans Teams → Integrations → Developer Portal
+      app_store_connect: codemagic-ios-release-v2
     environment:
       ios_signing:
         distribution_type: app_store
