@@ -26,8 +26,8 @@ workflows:
       node: 22.14.0
       xcode: latest
       cocoapods: default
-      # Définissez EXPO_PUBLIC_OPENAI_API_KEY dans Codemagic
-      # (Application → Environment variables, Secure)
+      groups:
+        - openai
     scripts:
       - name: Install npm dependencies
         script: |
@@ -86,7 +86,9 @@ workflows:
     environment:
       node: 22.14.0
       java: 17
-      # Définissez EXPO_PUBLIC_OPENAI_API_KEY dans Codemagic (Secure)
+      groups:
+        - openai
+      # Keystore Android : à configurer dans Codemagic (Code signing) si besoin
     scripts:
       - name: Install npm dependencies
         script: |
