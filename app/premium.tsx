@@ -4,6 +4,8 @@ import { Button } from '../src/components/ui';
 import { colors, spacing, radius } from '../src/constants/theme';
 import { useSubscription } from '../src/context/SubscriptionContext';
 
+import { TRIAL_DURATION_DAYS } from '../src/constants/subscriptions';
+
 const FEATURES = [
   { emoji: '🪴', title: 'Plantes illimitées', desc: 'Gérez toute votre collection sans limite' },
   { emoji: '🔍', title: 'Diagnostic illimité', desc: 'Détection de maladies par photo sans restriction' },
@@ -17,6 +19,9 @@ const EULA_URL = 'https://chafik83606.github.io/planteetjardin-privacy/eula.html
 export default function PremiumScreen() {
   const {
     isPremium,
+    isTrialActive,
+    trialDaysRemaining,
+    trialExpired,
     isLoading,
     purchasesReady,
     monthlyProduct,
@@ -44,9 +49,22 @@ export default function PremiumScreen() {
         <Text style={styles.heroEmoji}>🌿</Text>
         <Text style={styles.heroTitle}>Plante & Jardin Premium</Text>
         <Text style={styles.heroSubtitle}>
-          Débloquez tout le potentiel de votre jardin numérique
+          {trialExpired
+            ? 'Votre essai gratuit est terminé. Abonnez-vous pour continuer à utiliser l\'app.'
+            : isTrialActive
+              ? `Essai gratuit : ${trialDaysRemaining} jour${trialDaysRemaining > 1 ? 's' : ''} restant${trialDaysRemaining > 1 ? 's' : ''}`
+              : 'Débloquez tout le potentiel de votre jardin numérique'}
         </Text>
       </View>
+
+      {isTrialActive && !isPremium && (
+        <View style={styles.trialBanner}>
+          <Text style={styles.trialBannerText}>
+            Profitez de toutes les fonctionnalités pendant {TRIAL_DURATION_DAYS} jours, puis
+            abonnez-vous pour continuer.
+          </Text>
+        </View>
+      )}
 
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={styles.loader} />
@@ -142,6 +160,19 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: spacing.sm,
+    lineHeight: 22,
+  },
+  trialBanner: {
+    backgroundColor: colors.warning + '20',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  trialBannerText: {
+    fontSize: 13,
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   loader: {
     marginVertical: spacing.lg,
