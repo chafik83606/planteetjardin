@@ -16,7 +16,7 @@ export default function CatalogDetailScreen() {
   const router = useRouter();
   const plant = getCatalogPlant(id!);
   const { plants } = useAppData();
-  const { canAddPlant, plantLimit } = useSubscription();
+  const { canAddPlant, trialExpired } = useSubscription();
   const [nickname, setNickname] = useState(plant?.name || '');
   const [location, setLocation] = useState('');
 
@@ -85,7 +85,9 @@ export default function CatalogDetailScreen() {
         <Button title="Ajouter à mes plantes" onPress={handleAdd} />
         {!canAddPlant(plants.length) && (
           <Text style={styles.limitText}>
-            Limite gratuite atteinte ({plantLimit} plantes). Passez Premium pour en ajouter plus.
+            {trialExpired
+              ? 'Votre essai gratuit est terminé. Abonnez-vous pour ajouter des plantes.'
+              : 'Abonnez-vous pour ajouter des plantes.'}
           </Text>
         )}
       </Card>

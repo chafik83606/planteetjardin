@@ -11,7 +11,7 @@ import { useSubscription } from '../../src/context/SubscriptionContext';
 export default function PlantsScreen() {
   const router = useRouter();
   const { plants, refresh } = useAppData();
-  const { plantLimit, isPremium } = useSubscription();
+  const { isPremium, isTrialActive, trialDaysRemaining } = useSubscription();
 
   useFocusEffect(
     useCallback(() => {
@@ -54,8 +54,8 @@ export default function PlantsScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.counter}>
-        {plants.length}
-        {!isPremium && ` / ${plantLimit}`} plante{plants.length > 1 ? 's' : ''}
+        {plants.length} plante{plants.length > 1 ? 's' : ''}
+        {isTrialActive && !isPremium ? ` · Essai ${trialDaysRemaining}j` : ''}
       </Text>
       <FlatList
         data={plants}

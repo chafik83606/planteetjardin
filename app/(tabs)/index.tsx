@@ -21,7 +21,7 @@ import { useSubscription } from '../../src/context/SubscriptionContext';
 export default function HomeScreen() {
   const router = useRouter();
   const { plants, upcomingTasks, overdueTasks, todayWatering, refresh } = useAppData();
-  const { isPremium } = useSubscription();
+  const { isPremium, isTrialActive, trialDaysRemaining } = useSubscription();
 
   useFocusEffect(
     useCallback(() => {
@@ -50,12 +50,16 @@ export default function HomeScreen() {
               : `${plants.length} plante${plants.length > 1 ? 's' : ''} sous votre garde`}
           </Text>
         </View>
-        {!isPremium && (
+        {isTrialActive && !isPremium ? (
+          <TouchableOpacity style={styles.trialBadge} onPress={() => router.push('/premium')}>
+            <Text style={styles.trialText}>Essai {trialDaysRemaining}j</Text>
+          </TouchableOpacity>
+        ) : !isPremium ? (
           <TouchableOpacity style={styles.premiumBadge} onPress={() => router.push('/premium')}>
             <Ionicons name="star" size={14} color={colors.premium} />
             <Text style={styles.premiumText}>Premium</Text>
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
 
       <Text style={styles.wateringTitle}>💧 À arroser aujourd'hui</Text>
@@ -235,6 +239,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.premium,
+  },
+  trialBadge: {
+    backgroundColor: colors.primary + '20',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+  },
+  trialText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
   },
   wateringTitle: {
     fontSize: 20,

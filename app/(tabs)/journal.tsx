@@ -32,7 +32,7 @@ type DateFilter = 'all' | 'week' | 'month';
 export default function JournalScreen() {
   const router = useRouter();
   const { journalEntries, plants, refresh } = useAppData();
-  const { canAddJournalEntry, journalLimit, isPremium } = useSubscription();
+  const { canAddJournalEntry, isPremium, isTrialActive, trialDaysRemaining } = useSubscription();
   const shareRef = useRef<View>(null);
   const [sharingEntry, setSharingEntry] = useState<JournalEntry | null>(null);
 
@@ -127,8 +127,8 @@ export default function JournalScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.counter}>
-          {journalEntries.length}
-          {!isPremium && ` / ${journalLimit}`} entrée{journalEntries.length > 1 ? 's' : ''}
+          {journalEntries.length} entrée{journalEntries.length > 1 ? 's' : ''}
+          {isTrialActive && !isPremium ? ` · Essai ${trialDaysRemaining}j` : ''}
         </Text>
         <Button title="+ Nouvelle entrée" onPress={handleAdd} style={styles.addBtn} />
       </View>

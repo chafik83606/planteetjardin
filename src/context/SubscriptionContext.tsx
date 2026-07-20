@@ -17,9 +17,13 @@ import {
   isPurchasesConfigured,
   type SubscriptionProduct,
 } from '../services/purchases';
+import { getTrialDaysRemaining, getTrialStartDate, isTrialActive } from '../services/trial';
 
 interface SubscriptionContextType {
   isPremium: boolean;
+  isTrialActive: boolean;
+  trialDaysRemaining: number;
+  trialExpired: boolean;
   isLoading: boolean;
   purchasesReady: boolean;
   plantLimit: number;
@@ -32,21 +36,23 @@ interface SubscriptionContextType {
   canAddPlant: (currentCount: number) => boolean;
   canAddJournalEntry: (currentCount: number) => boolean;
   canUseDiagnosis: () => boolean;
+  hasFullAccess: () => boolean;
 }
-
-const FREE_PLANT_LIMIT = 5;
-const FREE_JOURNAL_LIMIT = 20;
-const FREE_DIAGNOSIS_PER_MONTH = 3;
 
 const SubscriptionContext = createContext<SubscriptionContextType | null>(null);
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [isPremium, setIsPremium] = useState(false);
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [purchasesReady, setPurchasesReady] = useState(false);
   const [monthlyProduct, setMonthlyProduct] = useState<SubscriptionProduct | null>(null);
   const [yearlyProduct, setYearlyProduct] = useState<SubscriptionProduct | null>(null);
-  const [diagnosisCount] = useState(0);
+
+  const refreshTrial = useCallback(() => {
+    getTrialStartDate();
+    setTrialDaysRemaining(getTrialDaysRemaining());
+  }, []);
 
   const loadProducts = useCallback(async () => {
     const products = await getPremiumProducts();
@@ -59,6 +65,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     let removeListener = () => {};
 
     async function setup() {
+      refreshTrial();
+
       if (!isPurchasesConfigured()) {
         setIsLoading(false);
         return;
@@ -80,7 +88,11 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
     setup();
     return () => removeListener();
-  }, [loadProducts]);
+  }, [loadProducts, refreshTrial]);
+
+  const trialActive = isTrialActive();
+  const trialExpired = !trialActive;
+  const hasFullAccess = () => isPremium || trialActive;
 
   const handlePurchase = async (product: SubscriptionProduct | null, label: string) => {
     if (!product) {
@@ -128,19 +140,21 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const canAddPlant = (currentCount: number) => isPremium || currentCount < FREE_PLANT_LIMIT;
-  const canAddJournalEntry = (currentCount: number) =>
-    isPremium || currentCount < FREE_JOURNAL_LIMIT;
-  const canUseDiagnosis = () => isPremium || diagnosisCount < FREE_DIAGNOSIS_PER_MONTH;
+  const canAddPlant = (_currentCount = 0) => hasFullAccess();
+  const canAddJournalEntry = (_currentCount = 0) => hasFullAccess();
+  const canUseDiagnosis = () => hasFullAccess();
 
   return (
     <SubscriptionContext.Provider
       value={{
         isPremium,
+        isTrialActive: trialActive,
+        trialDaysRemaining,
+        trialExpired,
         isLoading,
         purchasesReady,
-        plantLimit: isPremium ? Infinity : FREE_PLANT_LIMIT,
-        journalLimit: isPremium ? Infinity : FREE_JOURNAL_LIMIT,
+        plantLimit: hasFullAccess() ? Infinity : 0,
+        journalLimit: hasFullAccess() ? Infinity : 0,
         monthlyProduct,
         yearlyProduct,
         purchaseMonthly,
@@ -149,6 +163,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         canAddPlant,
         canAddJournalEntry,
         canUseDiagnosis,
+        hasFullAccess,
       }}
     >
       {children}
