@@ -13,6 +13,7 @@ import { useAppData } from '../../src/hooks/useAppData';
 import { getCatalogPlant } from '../../src/data/plants';
 import { getUserPlant, completeCareTask } from '../../src/services/database';
 import { scheduleCareReminders } from '../../src/services/notifications';
+import { getTodayDateString } from '../../src/utils/dates';
 import { Card, Button, EmptyState } from '../../src/components/ui';
 import { CareTaskItem } from '../../src/components/CareTaskItem';
 import { colors, spacing, radius } from '../../src/constants/theme';
@@ -72,7 +73,7 @@ export default function HomeScreen() {
           {todayWatering.map((task) => {
             const plant = getUserPlant(task.plantId);
             const catalog = plant ? getCatalogPlant(plant.catalogId) : null;
-            const isOverdue = task.dueDate < new Date().toISOString().split('T')[0];
+            const isOverdue = task.dueDate < getTodayDateString();
 
             return (
               <TouchableOpacity

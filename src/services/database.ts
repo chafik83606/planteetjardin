@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import { addDays, addMonths, formatISO, parseISO } from 'date-fns';
 import { getCatalogPlant } from '../data/plants';
 import { CareTask, CareType, JournalEntry, PlantCareIntervals, UserPlant } from '../types';
+import { getTodayDateString } from '../utils/dates';
 
 const db = SQLite.openDatabaseSync('planteetjardin.db');
 
@@ -75,6 +76,78 @@ export function initDatabase(): void {
   `);
 
   migrateDatabase();
+  reconcileCareTasks();
+}
+
+function getCareBaseDate(plant: UserPlant, type: CareType): Date {
+  const last = getLastCareDate(plant, type);
+  if (last) return parseISO(last);
+  return parseISO(plant.acquiredAt);
+}
+
+function clearPendingTasks(plantId: string, type: CareType): void {
+  db.runSync(
+    'DELETE FROM care_tasks WHERE plant_id = ? AND type = ? AND completed = 0',
+    [plantId, type]
+  );
+}
+
+function scheduleNextTask(plantId: string, type: CareType, baseDate?: Date): void {
+  const plant = getUserPlant(plantId);
+  if (!plant) return;
+
+  const intervals = getPlantCareIntervals(plant);
+  const base = baseDate ?? getCareBaseDate(plant, type);
+
+  let nextDue: Date;
+  switch (type) {
+    case 'watering':
+      nextDue = addDays(base, intervals.wateringDays);
+      break;
+    case 'fertilizing':
+      nextDue = addDays(base, intervals.fertilizingDays);
+      break;
+    case 'repotting':
+      nextDue = addMonths(base, intervals.repottingMonths);
+      break;
+  }
+
+  clearPendingTasks(plantId, type);
+  db.runSync(
+    'INSERT INTO care_tasks (id, plant_id, type, due_date, completed) VALUES (?, ?, ?, ?, 0)',
+    [generateId(), plantId, type, formatISO(nextDue, { representation: 'date' })]
+  );
+}
+
+/** Supprime les doublons et recalcule les tâches sans date de référence. */
+function reconcileCareTasks(): void {
+  const pending = db.getAllSync(
+    'SELECT * FROM care_tasks WHERE completed = 0 ORDER BY due_date ASC'
+  );
+  const seen = new Set<string>();
+
+  for (const row of pending) {
+    const task = asRow(row);
+    const key = `${task.plant_id}:${task.type}`;
+    if (seen.has(key)) {
+      db.runSync('DELETE FROM care_tasks WHERE id = ?', [task.id]);
+      continue;
+    }
+    seen.add(key);
+  }
+
+  const plants = getUserPlants();
+  for (const plant of plants) {
+    for (const type of ['watering', 'fertilizing', 'repotting'] as CareType[]) {
+      const existing = db.getFirstSync(
+        'SELECT id FROM care_tasks WHERE plant_id = ? AND type = ? AND completed = 0 LIMIT 1',
+        [plant.id, type]
+      );
+      if (!existing) {
+        scheduleNextTask(plant.id, type);
+      }
+    }
+  }
 }
 
 function rowToUserPlant(row: DbRow): UserPlant {
@@ -126,23 +199,9 @@ export function getPlantCareIntervals(plant: UserPlant): PlantCareIntervals {
   };
 }
 
-function scheduleCareTasks(plantId: string, catalogId: string, fromDate: Date = new Date()): void {
-  const plant = getUserPlant(plantId);
-  if (!plant) return;
-
-  const intervals = getPlantCareIntervals(plant);
-
-  const tasks: { type: CareType; dueDate: Date }[] = [
-    { type: 'watering', dueDate: addDays(fromDate, intervals.wateringDays) },
-    { type: 'fertilizing', dueDate: addDays(fromDate, intervals.fertilizingDays) },
-    { type: 'repotting', dueDate: addMonths(fromDate, intervals.repottingMonths) },
-  ];
-
-  for (const task of tasks) {
-    db.runSync(
-      'INSERT INTO care_tasks (id, plant_id, type, due_date, completed) VALUES (?, ?, ?, ?, 0)',
-      [generateId(), plantId, task.type, formatISO(task.dueDate, { representation: 'date' })]
-    );
+function scheduleCareTasks(plantId: string): void {
+  for (const type of ['watering', 'fertilizing', 'repotting'] as CareType[]) {
+    scheduleNextTask(plantId, type);
   }
 }
 
@@ -165,7 +224,7 @@ export function addUserPlant(catalogId: string, nickname: string, location: stri
     [id, catalogId, nickname, location, now]
   );
 
-  scheduleCareTasks(id, catalogId);
+  scheduleCareTasks(id);
 
   return getUserPlant(id)!;
 }
@@ -198,40 +257,8 @@ export function updatePlantCareIntervals(
 }
 
 function reschedulePendingTasks(plantId: string): void {
-  const plant = getUserPlant(plantId);
-  if (!plant) return;
-
-  const intervals = getPlantCareIntervals(plant);
-  const today = formatISO(new Date(), { representation: 'date' });
-
-  const pending = db.getAllSync(
-    'SELECT * FROM care_tasks WHERE plant_id = ? AND completed = 0',
-    [plantId]
-  );
-
-  for (const row of pending) {
-    const task = asRow(row);
-    const type = task.type as CareType;
-    const lastDate = getLastCareDate(plant, type);
-    const baseDate = lastDate ? parseISO(lastDate) : new Date();
-
-    let nextDue: Date;
-    switch (type) {
-      case 'watering':
-        nextDue = addDays(baseDate, intervals.wateringDays);
-        break;
-      case 'fertilizing':
-        nextDue = addDays(baseDate, intervals.fertilizingDays);
-        break;
-      case 'repotting':
-        nextDue = addMonths(baseDate, intervals.repottingMonths);
-        break;
-    }
-
-    const dueStr = formatISO(nextDue, { representation: 'date' });
-    if (dueStr >= today) {
-      db.runSync('UPDATE care_tasks SET due_date = ? WHERE id = ?', [dueStr, task.id as string]);
-    }
+  for (const type of ['watering', 'fertilizing', 'repotting'] as CareType[]) {
+    scheduleNextTask(plantId, type);
   }
 }
 
@@ -263,8 +290,8 @@ export function getCareTasks(plantId?: string): CareTask[] {
   return rows.map((row) => rowToCareTask(asRow(row)));
 }
 
-export function getUpcomingTasks(limit = 10): CareTask[] {
-  const today = formatISO(new Date(), { representation: 'date' });
+export function getUpcomingTasks(limit = 50): CareTask[] {
+  const today = getTodayDateString();
   const rows = db.getAllSync(
     'SELECT * FROM care_tasks WHERE completed = 0 AND due_date >= ? ORDER BY due_date ASC LIMIT ?',
     [today, limit]
@@ -273,7 +300,7 @@ export function getUpcomingTasks(limit = 10): CareTask[] {
 }
 
 export function getOverdueTasks(): CareTask[] {
-  const today = formatISO(new Date(), { representation: 'date' });
+  const today = getTodayDateString();
   const rows = db.getAllSync(
     'SELECT * FROM care_tasks WHERE completed = 0 AND due_date < ? ORDER BY due_date ASC',
     [today]
@@ -281,8 +308,8 @@ export function getOverdueTasks(): CareTask[] {
   return rows.map((row) => rowToCareTask(asRow(row)));
 }
 
-export function getTodayWateringTasks(limit = 3): CareTask[] {
-  const today = formatISO(new Date(), { representation: 'date' });
+export function getTodayWateringTasks(limit = 50): CareTask[] {
+  const today = getTodayDateString();
   const rows = db.getAllSync(
     `SELECT * FROM care_tasks
      WHERE completed = 0 AND type = 'watering' AND due_date <= ?
@@ -297,13 +324,12 @@ export function completeCareTask(taskId: string): void {
   if (!taskRow) return;
 
   const task = asRow(taskRow);
-  const now = formatISO(new Date(), { representation: 'date' });
+  const now = getTodayDateString();
   db.runSync('UPDATE care_tasks SET completed = 1, completed_at = ? WHERE id = ?', [now, taskId]);
 
   const plant = getUserPlant(task.plant_id as string);
   if (!plant) return;
 
-  const intervals = getPlantCareIntervals(plant);
   const type = task.type as CareType;
 
   const columnMap: Record<CareType, string> = {
@@ -313,24 +339,7 @@ export function completeCareTask(taskId: string): void {
   };
 
   db.runSync(`UPDATE user_plants SET ${columnMap[type]} = ? WHERE id = ?`, [now, plant.id]);
-
-  let nextDue: Date;
-  switch (type) {
-    case 'watering':
-      nextDue = addDays(parseISO(now), intervals.wateringDays);
-      break;
-    case 'fertilizing':
-      nextDue = addDays(parseISO(now), intervals.fertilizingDays);
-      break;
-    case 'repotting':
-      nextDue = addMonths(parseISO(now), intervals.repottingMonths);
-      break;
-  }
-
-  db.runSync(
-    'INSERT INTO care_tasks (id, plant_id, type, due_date, completed) VALUES (?, ?, ?, ?, 0)',
-    [generateId(), plant.id, type, formatISO(nextDue, { representation: 'date' })]
-  );
+  scheduleNextTask(plant.id, type, parseISO(now));
 }
 
 export function getJournalEntries(plantId?: string): JournalEntry[] {

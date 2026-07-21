@@ -2,13 +2,13 @@
   "expo": {
     "name": "Plante & Jardin",
     "slug": "planteetjardin",
-    "version": "1.1.13",
+    "version": "1.1.14",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "planteetjardin",
     "ios": {
-      "buildNumber": "18",
+      "buildNumber": "19",
       "supportsTablet": false,
       "bundleIdentifier": "com.planteetjardin.app",
       "infoPlist": {
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.planteetjardin.app",
-      "versionCode": 14,
+      "versionCode": 15,
       "adaptiveIcon": {
         "backgroundColor": "#2D6A4F",
         "foregroundImage": "./assets/android-icon-foreground.png",

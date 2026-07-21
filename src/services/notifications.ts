@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { getOverdueTasks, getUpcomingTasks, getUserPlant } from './database';
 import { getCatalogPlant } from '../data/plants';
 import { CARE_LABELS } from '../types';
+import { parseLocalDate } from '../utils/dates';
 
 type NotificationsModule = typeof import('expo-notifications');
 
@@ -87,7 +88,7 @@ export async function scheduleCareReminders(): Promise<void> {
     const plantName = plant.nickname || catalog?.name || 'Votre plante';
     const careLabel = CARE_LABELS[task.type];
 
-    const triggerDate = new Date(task.dueDate);
+    const triggerDate = parseLocalDate(task.dueDate);
     triggerDate.setHours(9, 0, 0, 0);
 
     if (triggerDate <= new Date()) {

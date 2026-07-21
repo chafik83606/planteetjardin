@@ -44,6 +44,10 @@ export default function CatalogScreen() {
         onChangeText={setSearch}
       />
 
+      <Text style={styles.catalogCount}>
+        {filtered.length} plante{filtered.length > 1 ? 's' : ''} dans le catalogue
+      </Text>
+
       <FlatList
         horizontal
         data={CATEGORIES}
@@ -102,6 +106,13 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  catalogCount: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    fontSize: 13,
+    color: colors.textMuted,
+    fontWeight: '600',
   },
   filters: {
     maxHeight: 44,

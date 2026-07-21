@@ -9,6 +9,7 @@ import { Card, EmptyState } from '../../src/components/ui';
 import { CareTaskItem } from '../../src/components/CareTaskItem';
 import { colors, spacing } from '../../src/constants/theme';
 import { CareTask } from '../../src/types';
+import { formatLocalDateLabel, getTodayDateString } from '../../src/utils/dates';
 
 function groupTasksByDate(tasks: CareTask[]) {
   const groups: Record<string, CareTask[]> = {};
@@ -20,11 +21,7 @@ function groupTasksByDate(tasks: CareTask[]) {
   return Object.entries(groups)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, data]) => ({
-      title: new Date(date).toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      }),
+      title: formatLocalDateLabel(date),
       date,
       data,
     }));
@@ -79,7 +76,7 @@ export default function CalendarScreen() {
           <Text
             style={[
               styles.sectionHeader,
-              section.date < new Date().toISOString().split('T')[0] && styles.sectionHeaderOverdue,
+              section.date < getTodayDateString() && styles.sectionHeaderOverdue,
             ]}
           >
             {section.title}

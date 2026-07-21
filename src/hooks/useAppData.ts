@@ -22,7 +22,7 @@ export function useAppData() {
     setPlants(getUserPlants());
     setUpcomingTasks(getUpcomingTasks());
     setOverdueTasks(getOverdueTasks());
-    setTodayWatering(getTodayWateringTasks(3));
+    setTodayWatering(getTodayWateringTasks());
     setJournalEntries(getJournalEntries());
   }, []);
 
