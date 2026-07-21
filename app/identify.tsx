@@ -81,6 +81,12 @@ export default function IdentifyScreen() {
 
   const catalog = result?.catalogId ? getCatalogPlant(result.catalogId) : null;
 
+  const openCatalogSheet = () => {
+    if (!result?.catalogId || !catalog) return;
+    router.dismiss();
+    router.push(`/catalog/${result.catalogId}`);
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.intro}>
@@ -147,7 +153,7 @@ export default function IdentifyScreen() {
           {result.catalogId && catalog ? (
             <Button
               title={`📖 Voir la fiche ${catalog.name}`}
-              onPress={() => router.push(`/catalog/${result.catalogId}`)}
+              onPress={openCatalogSheet}
               style={styles.catalogBtn}
             />
           ) : (

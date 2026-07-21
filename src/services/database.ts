@@ -1,8 +1,8 @@
 import * as SQLite from 'expo-sqlite';
-import { addDays, addMonths, formatISO, parseISO } from 'date-fns';
+import { addDays, addMonths } from 'date-fns';
 import { getCatalogPlant } from '../data/plants';
 import { CareTask, CareType, JournalEntry, PlantCareIntervals, UserPlant } from '../types';
-import { getTodayDateString } from '../utils/dates';
+import { formatDateString, getTodayDateString, parseLocalDate } from '../utils/dates';
 
 const db = SQLite.openDatabaseSync('planteetjardin.db');
 
@@ -81,8 +81,26 @@ export function initDatabase(): void {
 
 function getCareBaseDate(plant: UserPlant, type: CareType): Date {
   const last = getLastCareDate(plant, type);
-  if (last) return parseISO(last);
-  return parseISO(plant.acquiredAt);
+  if (last) return parseLocalDate(last);
+  return parseLocalDate(plant.acquiredAt);
+}
+
+function computeNextDueDate(plant: UserPlant, type: CareType, baseDate?: Date): Date {
+  const intervals = getPlantCareIntervals(plant);
+  const base = baseDate ?? getCareBaseDate(plant, type);
+
+  switch (type) {
+    case 'watering':
+      return addDays(base, intervals.wateringDays);
+    case 'fertilizing':
+      return addDays(base, intervals.fertilizingDays);
+    case 'repotting':
+      return addMonths(base, intervals.repottingMonths);
+  }
+}
+
+function getExpectedDueDate(plant: UserPlant, type: CareType): string {
+  return formatDateString(computeNextDueDate(plant, type));
 }
 
 function clearPendingTasks(plantId: string, type: CareType): void {
@@ -96,26 +114,12 @@ function scheduleNextTask(plantId: string, type: CareType, baseDate?: Date): voi
   const plant = getUserPlant(plantId);
   if (!plant) return;
 
-  const intervals = getPlantCareIntervals(plant);
-  const base = baseDate ?? getCareBaseDate(plant, type);
-
-  let nextDue: Date;
-  switch (type) {
-    case 'watering':
-      nextDue = addDays(base, intervals.wateringDays);
-      break;
-    case 'fertilizing':
-      nextDue = addDays(base, intervals.fertilizingDays);
-      break;
-    case 'repotting':
-      nextDue = addMonths(base, intervals.repottingMonths);
-      break;
-  }
+  const nextDue = computeNextDueDate(plant, type, baseDate);
 
   clearPendingTasks(plantId, type);
   db.runSync(
     'INSERT INTO care_tasks (id, plant_id, type, due_date, completed) VALUES (?, ?, ?, ?, 0)',
-    [generateId(), plantId, type, formatISO(nextDue, { representation: 'date' })]
+    [generateId(), plantId, type, formatDateString(nextDue)]
   );
 }
 
@@ -139,11 +143,13 @@ function reconcileCareTasks(): void {
   const plants = getUserPlants();
   for (const plant of plants) {
     for (const type of ['watering', 'fertilizing', 'repotting'] as CareType[]) {
+      const expected = getExpectedDueDate(plant, type);
       const existing = db.getFirstSync(
-        'SELECT id FROM care_tasks WHERE plant_id = ? AND type = ? AND completed = 0 LIMIT 1',
+        'SELECT due_date FROM care_tasks WHERE plant_id = ? AND type = ? AND completed = 0 LIMIT 1',
         [plant.id, type]
-      );
-      if (!existing) {
+      ) as DbRow | null;
+
+      if (!existing || existing.due_date !== expected) {
         scheduleNextTask(plant.id, type);
       }
     }
@@ -217,7 +223,7 @@ export function getUserPlant(id: string): UserPlant | null {
 
 export function addUserPlant(catalogId: string, nickname: string, location: string = ''): UserPlant {
   const id = generateId();
-  const now = formatISO(new Date(), { representation: 'date' });
+  const now = getTodayDateString();
 
   db.runSync(
     'INSERT INTO user_plants (id, catalog_id, nickname, location, acquired_at) VALUES (?, ?, ?, ?, ?)',
@@ -339,7 +345,7 @@ export function completeCareTask(taskId: string): void {
   };
 
   db.runSync(`UPDATE user_plants SET ${columnMap[type]} = ? WHERE id = ?`, [now, plant.id]);
-  scheduleNextTask(plant.id, type, parseISO(now));
+  scheduleNextTask(plant.id, type, parseLocalDate(now));
 }
 
 export function getJournalEntries(plantId?: string): JournalEntry[] {

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../constants/theme';
 import { CareType, CARE_LABELS } from '../types';
+import { formatLocalDateLabelShort } from '../utils/dates';
 
 const CARE_ICONS: Record<CareType, keyof typeof Ionicons.glyphMap> = {
   watering: 'water',
@@ -48,10 +49,7 @@ export function CareTaskItem({
         <Text style={styles.careType}>{CARE_LABELS[type]}</Text>
         <Text style={[styles.dueDate, isOverdue && styles.dueDateOverdue]}>
           {isOverdue ? 'En retard — ' : ''}
-          {new Date(dueDate).toLocaleDateString('fr-FR', {
-            day: 'numeric',
-            month: 'short',
-          })}
+          {formatLocalDateLabelShort(dueDate)}
         </Text>
       </View>
       {onComplete && (

@@ -36,7 +36,9 @@ export default function CalendarScreen() {
     }, [refresh])
   );
 
-  const allTasks = [...overdueTasks, ...upcomingTasks];
+  const allTasks = [...overdueTasks, ...upcomingTasks].sort((a, b) =>
+    a.dueDate.localeCompare(b.dueDate)
+  );
   const sections = groupTasksByDate(allTasks);
 
   const handleComplete = async (taskId: string) => {
@@ -66,6 +68,11 @@ export default function CalendarScreen() {
           </Text>
         </View>
       )}
+
+      <Text style={styles.hint}>
+        Les dates sont calculées à partir de l'ajout de la plante. Cochez une tâche après l'avoir
+        faite pour recalculer le prochain rappel.
+      </Text>
 
       <SectionList
         sections={sections}
@@ -120,6 +127,14 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  hint: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 17,
   },
   list: {
     padding: spacing.md,
