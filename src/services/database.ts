@@ -1,7 +1,8 @@
 import * as SQLite from 'expo-sqlite';
-import { addDays, addMonths } from 'date-fns';
+import { addDays, addMonths, subDays, subMonths } from 'date-fns';
 import { getCatalogPlant } from '../data/plants';
 import { CareTask, CareType, JournalEntry, PlantCareIntervals, UserPlant } from '../types';
+import { InitialCareHistory } from '../utils/careHistory';
 import { formatDateString, getTodayDateString, parseLocalDate } from '../utils/dates';
 
 const db = SQLite.openDatabaseSync('planteetjardin.db');
@@ -221,13 +222,35 @@ export function getUserPlant(id: string): UserPlant | null {
   return row ? rowToUserPlant(asRow(row)) : null;
 }
 
-export function addUserPlant(catalogId: string, nickname: string, location: string = ''): UserPlant {
+export function addUserPlant(
+  catalogId: string,
+  nickname: string,
+  location: string = '',
+  careHistory?: InitialCareHistory
+): UserPlant {
   const id = generateId();
   const now = getTodayDateString();
+  const today = parseLocalDate(now);
+
+  const lastWateredAt =
+    careHistory?.lastWateredDaysAgo != null
+      ? formatDateString(subDays(today, careHistory.lastWateredDaysAgo))
+      : null;
+  const lastFertilizedAt =
+    careHistory?.lastFertilizedDaysAgo != null
+      ? formatDateString(subDays(today, careHistory.lastFertilizedDaysAgo))
+      : null;
+  const lastRepottedAt =
+    careHistory?.lastRepottedMonthsAgo != null
+      ? formatDateString(subMonths(today, careHistory.lastRepottedMonthsAgo))
+      : null;
 
   db.runSync(
-    'INSERT INTO user_plants (id, catalog_id, nickname, location, acquired_at) VALUES (?, ?, ?, ?, ?)',
-    [id, catalogId, nickname, location, now]
+    `INSERT INTO user_plants (
+      id, catalog_id, nickname, location, acquired_at,
+      last_watered_at, last_fertilized_at, last_repotted_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, catalogId, nickname, location, now, lastWateredAt, lastFertilizedAt, lastRepottedAt]
   );
 
   scheduleCareTasks(id);

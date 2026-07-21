@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getCatalogPlant } from '../../src/data/plants';
 import { getFertilizerAdvice } from '../../src/utils/fertilizerAdvice';
 import { addUserPlant } from '../../src/services/database';
 import { scheduleCareReminders } from '../../src/services/notifications';
+import {
+  buildInitialCareHistory,
+  CARE_DAYS_OPTIONS,
+  CareDaysPreset,
+  REPOTTING_OPTIONS,
+  RepottingPreset,
+} from '../../src/utils/careHistory';
 import { PlantCard } from '../../src/components/PlantCard';
 import { Card, Button } from '../../src/components/ui';
-import { colors, spacing } from '../../src/constants/theme';
+import { colors, spacing, radius } from '../../src/constants/theme';
 import { useSubscription } from '../../src/context/SubscriptionContext';
 import { useAppData } from '../../src/hooks/useAppData';
 
@@ -19,6 +26,9 @@ export default function CatalogDetailScreen() {
   const { canAddPlant, trialExpired } = useSubscription();
   const [nickname, setNickname] = useState(plant?.name || '');
   const [location, setLocation] = useState('');
+  const [wateringPreset, setWateringPreset] = useState<CareDaysPreset>('unknown');
+  const [fertilizingPreset, setFertilizingPreset] = useState<CareDaysPreset>('unknown');
+  const [repottingPreset, setRepottingPreset] = useState<RepottingPreset>('unknown');
 
   if (!plant) {
     return (
@@ -38,7 +48,12 @@ export default function CatalogDetailScreen() {
       return;
     }
 
-    const added = addUserPlant(plant.id, nickname.trim(), location.trim());
+    const careHistory = buildInitialCareHistory(
+      wateringPreset,
+      fertilizingPreset,
+      repottingPreset
+    );
+    const added = addUserPlant(plant.id, nickname.trim(), location.trim(), careHistory);
     await scheduleCareReminders();
     Alert.alert('Ajoutée !', `${nickname} a rejoint votre collection.`, [
       { text: 'Voir', onPress: () => router.replace(`/plant/${added.id}`) },
@@ -82,6 +97,32 @@ export default function CatalogDetailScreen() {
           placeholder="Ex: Salon, rebord de fenêtre"
           placeholderTextColor={colors.textLight}
         />
+
+        <Text style={styles.careSectionTitle}>Votre entretien récent</Text>
+        <Text style={styles.careHint}>
+          Indiquez quand vous avez arrosé, fertilisé ou rempoté pour la dernière fois. Le calendrier
+          sera calculé à partir de vos réponses.
+        </Text>
+
+        <CarePresetGroup
+          label="💧 Dernier arrosage"
+          options={CARE_DAYS_OPTIONS}
+          value={wateringPreset}
+          onChange={setWateringPreset}
+        />
+        <CarePresetGroup
+          label="🌱 Dernier engrais"
+          options={CARE_DAYS_OPTIONS}
+          value={fertilizingPreset}
+          onChange={setFertilizingPreset}
+        />
+        <CarePresetGroup
+          label="🪴 Dernier rempotage"
+          options={REPOTTING_OPTIONS}
+          value={repottingPreset}
+          onChange={setRepottingPreset}
+        />
+
         <Button title="Ajouter à mes plantes" onPress={handleAdd} />
         {!canAddPlant(plants.length) && (
           <Text style={styles.limitText}>
@@ -92,6 +133,37 @@ export default function CatalogDetailScreen() {
         )}
       </Card>
     </ScrollView>
+  );
+}
+
+function CarePresetGroup<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { id: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <View style={styles.presetGroup}>
+      <Text style={styles.presetLabel}>{label}</Text>
+      <View style={styles.presetRow}>
+        {options.map((option) => (
+          <TouchableOpacity
+            key={option.id}
+            style={[styles.presetChip, value === option.id && styles.presetChipActive]}
+            onPress={() => onChange(option.id)}
+          >
+            <Text style={[styles.presetChipText, value === option.id && styles.presetChipTextActive]}>
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -200,5 +272,52 @@ const styles = StyleSheet.create({
     color: colors.premium,
     textAlign: 'center',
     marginTop: spacing.sm,
+  },
+  careSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.md,
+  },
+  careHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 17,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  presetGroup: {
+    marginBottom: spacing.sm,
+  },
+  presetLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  presetRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  presetChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  presetChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  presetChipText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  presetChipTextActive: {
+    color: colors.surface,
   },
 });

@@ -136,6 +136,10 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>Autres tâches</Text>
+      <Text style={styles.tasksHint}>
+        Dates calculées selon ce que vous avez indiqué à l'ajout de la plante. Cochez ✓ après chaque
+        entretien pour recalculer.
+      </Text>
       {otherTasks.length === 0 ? (
         <Card>
           <EmptyState
@@ -354,6 +358,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  tasksHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 17,
     marginBottom: spacing.md,
   },
   quickActions: {
