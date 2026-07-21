@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { addDays, addMonths, subDays, subMonths } from 'date-fns';
+import { addDays, addMonths } from 'date-fns';
 import { getCatalogPlant } from '../data/plants';
 import { CareTask, CareType, JournalEntry, PlantCareIntervals, UserPlant } from '../types';
 import { InitialCareHistory } from '../utils/careHistory';
@@ -230,20 +230,10 @@ export function addUserPlant(
 ): UserPlant {
   const id = generateId();
   const now = getTodayDateString();
-  const today = parseLocalDate(now);
 
-  const lastWateredAt =
-    careHistory?.lastWateredDaysAgo != null
-      ? formatDateString(subDays(today, careHistory.lastWateredDaysAgo))
-      : null;
-  const lastFertilizedAt =
-    careHistory?.lastFertilizedDaysAgo != null
-      ? formatDateString(subDays(today, careHistory.lastFertilizedDaysAgo))
-      : null;
-  const lastRepottedAt =
-    careHistory?.lastRepottedMonthsAgo != null
-      ? formatDateString(subMonths(today, careHistory.lastRepottedMonthsAgo))
-      : null;
+  const lastWateredAt = careHistory?.lastWateredAt ?? null;
+  const lastFertilizedAt = careHistory?.lastFertilizedAt ?? null;
+  const lastRepottedAt = careHistory?.lastRepottedAt ?? null;
 
   db.runSync(
     `INSERT INTO user_plants (

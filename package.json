@@ -1,9 +1,10 @@
 {
   "name": "planteetjardin",
-  "version": "1.1.17",
+  "version": "1.1.18",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@react-native-community/datetimepicker": "9.1.0",
     "date-fns": "^4.4.0",
     "expo": "~56.0.12",
     "expo-constants": "~56.0.18",

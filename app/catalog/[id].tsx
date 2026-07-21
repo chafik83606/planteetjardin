@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  Alert,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getCatalogPlant } from '../../src/data/plants';
 import { getFertilizerAdvice } from '../../src/utils/fertilizerAdvice';
@@ -12,11 +23,19 @@ import {
   REPOTTING_OPTIONS,
   RepottingPreset,
 } from '../../src/utils/careHistory';
+import {
+  formatDateString,
+  formatLocalDateLabelShort,
+  getTodayDateString,
+  parseLocalDate,
+} from '../../src/utils/dates';
 import { PlantCard } from '../../src/components/PlantCard';
 import { Card, Button } from '../../src/components/ui';
 import { colors, spacing, radius } from '../../src/constants/theme';
 import { useSubscription } from '../../src/context/SubscriptionContext';
 import { useAppData } from '../../src/hooks/useAppData';
+
+type CareDateField = 'watering' | 'fertilizing' | 'repotting';
 
 export default function CatalogDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -29,6 +48,36 @@ export default function CatalogDetailScreen() {
   const [wateringPreset, setWateringPreset] = useState<CareDaysPreset>('unknown');
   const [fertilizingPreset, setFertilizingPreset] = useState<CareDaysPreset>('unknown');
   const [repottingPreset, setRepottingPreset] = useState<RepottingPreset>('unknown');
+  const [wateringCustomDate, setWateringCustomDate] = useState<string | null>(null);
+  const [fertilizingCustomDate, setFertilizingCustomDate] = useState<string | null>(null);
+  const [repottingCustomDate, setRepottingCustomDate] = useState<string | null>(null);
+  const [datePickerField, setDatePickerField] = useState<CareDateField | null>(null);
+  const [pendingPickerDate, setPendingPickerDate] = useState<Date>(() =>
+    parseLocalDate(getTodayDateString())
+  );
+
+  const customDates: Record<CareDateField, string | null> = {
+    watering: wateringCustomDate,
+    fertilizing: fertilizingCustomDate,
+    repotting: repottingCustomDate,
+  };
+
+  const customDateSetters: Record<CareDateField, (date: string | null) => void> = {
+    watering: setWateringCustomDate,
+    fertilizing: setFertilizingCustomDate,
+    repotting: setRepottingCustomDate,
+  };
+
+  const openDatePicker = (field: CareDateField) => {
+    setPendingPickerDate(getPickerValue(field, customDates));
+    setDatePickerField(field);
+  };
+
+  const confirmPickerDate = () => {
+    if (!datePickerField) return;
+    customDateSetters[datePickerField](formatDateString(pendingPickerDate));
+    setDatePickerField(null);
+  };
 
   if (!plant) {
     return (
@@ -48,11 +97,14 @@ export default function CatalogDetailScreen() {
       return;
     }
 
-    const careHistory = buildInitialCareHistory(
+    const careHistory = buildInitialCareHistory({
       wateringPreset,
+      wateringCustomDate,
       fertilizingPreset,
-      repottingPreset
-    );
+      fertilizingCustomDate,
+      repottingPreset,
+      repottingCustomDate,
+    });
     const added = addUserPlant(plant.id, nickname.trim(), location.trim(), careHistory);
     await scheduleCareReminders();
     Alert.alert('Ajoutée !', `${nickname} a rejoint votre collection.`, [
@@ -107,21 +159,62 @@ export default function CatalogDetailScreen() {
         <CarePresetGroup
           label="💧 Dernier arrosage"
           options={CARE_DAYS_OPTIONS}
-          value={wateringPreset}
-          onChange={setWateringPreset}
+          preset={wateringPreset}
+          customDate={wateringCustomDate}
+          onPresetChange={(value) => {
+            setWateringCustomDate(null);
+            setWateringPreset(value);
+          }}
+          onCalendarPress={() => openDatePicker('watering')}
+          onClearCustomDate={() => setWateringCustomDate(null)}
         />
         <CarePresetGroup
           label="🌱 Dernier engrais"
           options={CARE_DAYS_OPTIONS}
-          value={fertilizingPreset}
-          onChange={setFertilizingPreset}
+          preset={fertilizingPreset}
+          customDate={fertilizingCustomDate}
+          onPresetChange={(value) => {
+            setFertilizingCustomDate(null);
+            setFertilizingPreset(value);
+          }}
+          onCalendarPress={() => openDatePicker('fertilizing')}
+          onClearCustomDate={() => setFertilizingCustomDate(null)}
         />
         <CarePresetGroup
           label="🪴 Dernier rempotage"
           options={REPOTTING_OPTIONS}
-          value={repottingPreset}
-          onChange={setRepottingPreset}
+          preset={repottingPreset}
+          customDate={repottingCustomDate}
+          onPresetChange={(value) => {
+            setRepottingCustomDate(null);
+            setRepottingPreset(value);
+          }}
+          onCalendarPress={() => openDatePicker('repotting')}
+          onClearCustomDate={() => setRepottingCustomDate(null)}
         />
+
+        {datePickerField && (
+          <View style={styles.datePickerWrap}>
+            <DateTimePicker
+              value={pendingPickerDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              maximumDate={new Date()}
+              onChange={(event, selectedDate) => {
+                if (Platform.OS === 'android') {
+                  setDatePickerField(null);
+                  if (event.type === 'dismissed' || !selectedDate) return;
+                  customDateSetters[datePickerField](formatDateString(selectedDate));
+                  return;
+                }
+                if (selectedDate) setPendingPickerDate(selectedDate);
+              }}
+            />
+            {Platform.OS === 'ios' && (
+              <Button title="Valider la date" onPress={confirmPickerDate} />
+            )}
+          </View>
+        )}
 
         <Button title="Ajouter à mes plantes" onPress={handleAdd} />
         {!canAddPlant(plants.length) && (
@@ -136,33 +229,81 @@ export default function CatalogDetailScreen() {
   );
 }
 
+function getPickerValue(
+  field: CareDateField,
+  customDates: Record<CareDateField, string | null>
+): Date {
+  const customDate = customDates[field];
+  if (customDate) return parseLocalDate(customDate);
+  return parseLocalDate(getTodayDateString());
+}
+
 function CarePresetGroup<T extends string>({
   label,
   options,
-  value,
-  onChange,
+  preset,
+  customDate,
+  onPresetChange,
+  onCalendarPress,
+  onClearCustomDate,
 }: {
   label: string;
   options: { id: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
+  preset: T;
+  customDate: string | null;
+  onPresetChange: (value: T) => void;
+  onCalendarPress: () => void;
+  onClearCustomDate: () => void;
 }) {
   return (
     <View style={styles.presetGroup}>
-      <Text style={styles.presetLabel}>{label}</Text>
+      <View style={styles.presetHeader}>
+        <Text style={styles.presetLabel}>{label}</Text>
+        <TouchableOpacity
+          style={[styles.calendarButton, customDate != null && styles.calendarButtonActive]}
+          onPress={onCalendarPress}
+          accessibilityLabel="Choisir une date précise"
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={18}
+            color={customDate != null ? colors.surface : colors.primary}
+          />
+        </TouchableOpacity>
+      </View>
       <View style={styles.presetRow}>
         {options.map((option) => (
           <TouchableOpacity
             key={option.id}
-            style={[styles.presetChip, value === option.id && styles.presetChipActive]}
-            onPress={() => onChange(option.id)}
+            style={[
+              styles.presetChip,
+              preset === option.id && customDate == null && styles.presetChipActive,
+            ]}
+            onPress={() => onPresetChange(option.id)}
           >
-            <Text style={[styles.presetChipText, value === option.id && styles.presetChipTextActive]}>
+            <Text
+              style={[
+                styles.presetChipText,
+                preset === option.id && customDate == null && styles.presetChipTextActive,
+              ]}
+            >
               {option.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
+      {customDate && (
+        <View style={styles.customDateRow}>
+          <TouchableOpacity style={[styles.presetChip, styles.presetChipActive]} onPress={onCalendarPress}>
+            <Text style={[styles.presetChipText, styles.presetChipTextActive]}>
+              {formatLocalDateLabelShort(customDate)}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.clearDateButton} onPress={onClearCustomDate}>
+            <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -289,11 +430,44 @@ const styles = StyleSheet.create({
   presetGroup: {
     marginBottom: spacing.sm,
   },
+  presetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
   presetLabel: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.xs,
+    flex: 1,
+  },
+  calendarButton: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  calendarButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  customDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  clearDateButton: {
+    padding: 2,
+  },
+  datePickerWrap: {
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
   presetRow: {
     flexDirection: 'row',

@@ -1,11 +1,14 @@
+import { subDays, subMonths } from 'date-fns';
+import { formatDateString, getTodayDateString, parseLocalDate } from './dates';
+
 export type CareDaysPreset = 'unknown' | 'today' | 'yesterday' | '3days' | '1week';
 
 export type RepottingPreset = 'unknown' | '6months' | '1year' | '2years';
 
 export interface InitialCareHistory {
-  lastWateredDaysAgo: number | null;
-  lastFertilizedDaysAgo: number | null;
-  lastRepottedMonthsAgo: number | null;
+  lastWateredAt: string | null;
+  lastFertilizedAt: string | null;
+  lastRepottedAt: string | null;
 }
 
 export const CARE_DAYS_OPTIONS: { id: CareDaysPreset; label: string; daysAgo: number | null }[] = [
@@ -23,18 +26,39 @@ export const REPOTTING_OPTIONS: { id: RepottingPreset; label: string; monthsAgo:
   { id: '2years', label: 'Il y a 2 ans', monthsAgo: 24 },
 ];
 
-export function buildInitialCareHistory(
-  watering: CareDaysPreset,
-  fertilizing: CareDaysPreset,
-  repotting: RepottingPreset
-): InitialCareHistory {
-  const wateringOpt = CARE_DAYS_OPTIONS.find((o) => o.id === watering)!;
-  const fertilizingOpt = CARE_DAYS_OPTIONS.find((o) => o.id === fertilizing)!;
-  const repottingOpt = REPOTTING_OPTIONS.find((o) => o.id === repotting)!;
+function resolveDaysPreset(
+  preset: CareDaysPreset,
+  customDate: string | null
+): string | null {
+  if (customDate) return customDate;
+  const option = CARE_DAYS_OPTIONS.find((o) => o.id === preset);
+  if (!option || option.daysAgo == null) return null;
+  const today = parseLocalDate(getTodayDateString());
+  return formatDateString(subDays(today, option.daysAgo));
+}
 
+function resolveRepottingPreset(
+  preset: RepottingPreset,
+  customDate: string | null
+): string | null {
+  if (customDate) return customDate;
+  const option = REPOTTING_OPTIONS.find((o) => o.id === preset);
+  if (!option || option.monthsAgo == null) return null;
+  const today = parseLocalDate(getTodayDateString());
+  return formatDateString(subMonths(today, option.monthsAgo));
+}
+
+export function buildInitialCareHistory(params: {
+  wateringPreset: CareDaysPreset;
+  wateringCustomDate: string | null;
+  fertilizingPreset: CareDaysPreset;
+  fertilizingCustomDate: string | null;
+  repottingPreset: RepottingPreset;
+  repottingCustomDate: string | null;
+}): InitialCareHistory {
   return {
-    lastWateredDaysAgo: wateringOpt.daysAgo,
-    lastFertilizedDaysAgo: fertilizingOpt.daysAgo,
-    lastRepottedMonthsAgo: repottingOpt.monthsAgo,
+    lastWateredAt: resolveDaysPreset(params.wateringPreset, params.wateringCustomDate),
+    lastFertilizedAt: resolveDaysPreset(params.fertilizingPreset, params.fertilizingCustomDate),
+    lastRepottedAt: resolveRepottingPreset(params.repottingPreset, params.repottingCustomDate),
   };
 }
